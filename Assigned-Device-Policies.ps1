@@ -156,5 +156,7 @@ function Get-IntuneDevicePolicyAssignments {
             "DeviceGUID" = $targetDeviceId
         }
     }
-    $result = Write-Output $deviceAssignments -Verbose
+    Write-Output $deviceAssignments -Verbose
 }
+
+Get-IntuneDeviceConfigurationPolicyAssignment
