@@ -23,9 +23,31 @@ function Get-IntuneDevicePolicyAssignments {
     $devices = ""
     $deviceAssignments = @{}
     $assignedGroup = @()
-    $deviceAssignments = @{
-    }
 
+    #Variables
+    $memUserPrompt = Read-Host -Prompt 'Input Intune-licensed user'
+
+    #Get User/device object
+    $sName = Get-AzADUser -DisplayName "$memUserPrompt*"
+    Write-Host "$($sName.DisplayName) identified"
+
+    #Return devices associated with user
+    $devices = Get-IntuneManagedDevice | Where-Object { $_.userPrincipalName -eq "$($sName.UserPrincipalName)" }
+
+    #Select device from list if multiple are currently managed
+    if (($devices.id).count -gt 1) {
+        Write-Host "There are multiple managed devices enrolled for $($sName.DisplayName). Please specify device." -ForegroundColor Red
+        $devices.deviceName
+        $targetDeviceName = Read-Host "Provide Devicename from list above"
+        $targetDevice = $devices | Where-Object { $_.deviceName -like "$targetDeviceName" }
+        $targetDeviceId = ($targetDevice).azureADDeviceId
+        #Assign device info to Output
+        $deviceAssignments.Add("DeviceName", $targetDeviceName)
+        $deviceAssignments.Add("DeviceGUID", $targetDeviceId)
+    }
+    else {
+        $targetDevice = $devices | Where-Object { $_.deviceName -eq $targetDeviceName }
+    }
 
     # Return all configured policies
     Write-Verbose "Querying Configuration Policies" -Verbose
@@ -62,7 +84,7 @@ function Get-IntuneDevicePolicyAssignments {
                 }
             }
             # Split multi-groups into individual GUIDs and add to policy collection
-            #$addedGroups += $multiGroup.Split(" ")
+            # $addedGroups += $multiGroup.Split(" ")
         }
         else {
             $failedPol = Get-IntuneDeviceConfigurationPolicy -deviceConfigurationId $id
@@ -88,39 +110,12 @@ function Get-IntuneDevicePolicyAssignments {
     $polCollCleanup = $polColl | Select-Object -Unique
     $upolColl = $polCollCleanup | Where-Object { $_.Values -notlike "*null*" }
 
-    #Variables
-    #$memUserPrompt = Read-Host -Prompt 'Input Intune-licensed user'
-
-    #Get User/device object
-    $sName = Get-AzADUser -DisplayName "$memUserPrompt*"
-    Write-Host "$($sName.DisplayName) identified"
-
-    #Return devices associated with user
-    $devices = Get-IntuneManagedDevice | Where-Object { $_.userPrincipalName -eq "$($sName.UserPrincipalName)" }
-
-    #Select device from list if multiple are currently managed
-    if (($devices.id).count -gt 1) {
-        Write-Host "There are multiple managed devices enrolled for $($sName.DisplayName). Please specify device." -ForegroundColor Red
-        $devices.deviceName
-        $targetDeviceName = Read-Host "Provide Devicename from list above"
-        $targetDevice = $devices | Where-Object { $_.deviceName -eq $targetDeviceName }
-        $targetDeviceId = ($targetDevice).azureADDeviceId
-        #Assign device info to Output
-        $deviceAssignments.Add("DeviceName", $targetDeviceName)
-        $deviceAssignments.Add("DeviceGUID", $targetDeviceId)
-    }
-    else {
-        $targetDevice = $devices | Where-Object { $_.deviceName -eq $targetDeviceName }
-    }
-
     #From list of groups targeted with policies, identify those that this device is a member of
-    #$aadGroups = @()
-    #$aadGroups = ($polColl).values
     $gMembership = @()
-    foreach ($group in ($upolColl).values) {
-        $gMembers = (Get-AADGroupMember -groupId $group).deviceId
+    foreach ($group in ($polColl).values) {
+        $gMembers = (Get-AADGroupMember -groupId $group).DeviceId
         #if a group contains the target device, add to an array
-        if ( $gmembers -contains $targetDeviceID) {
+        if ( $gMembers -contains $targetDeviceID) {
        
             $gMembership += $group
             Write-Host "Group $group Match" -ForegroundColor Green     
@@ -135,10 +130,15 @@ function Get-IntuneDevicePolicyAssignments {
     # for the groups that this device is a member of (where greater than 0)
     if ($gMembership.Count -gt 0) {
         # identify policies assigned to the device's assigned groups
-        Foreach ($Key in ($upolColl.GetEnumerator() | Where-Object { $_.Value -eq "$g" }))
-        { $filterPol += $Key.name }
+        foreach ($gr in $gMembership) {
+            foreach ($row in $upolColl | Where-Object { $_.Values -contains $gr })
+            { $filterPol += $row.Keys }
+        }
 
-    
+        # Filter unique
+        $filterPol = $filterPol | Select-Object -Unique
+        v
+        # grab associated policies (Upoll Key ids)    
         Write-Verbose "Filtering policies" -Verbose
         #Write-Host $filterPol
         # Return policies
@@ -150,11 +150,11 @@ function Get-IntuneDevicePolicyAssignments {
         # Results
     }
     else {
-        Write-Host "This device does not have assigned policies"
-        $deviceAssignments = @{}
+        Write-Host "This device does not have assigned configuration policies" -ForegroundColor Yellow
+        $deviceAssignments = @{
+            "DeviceName" = $targetDeviceName
+            "DeviceGUID" = $targetDeviceId
+        }
     }
     $result = Write-Output $deviceAssignments -Verbose
-
-
 }
-
