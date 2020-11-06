@@ -39,15 +39,23 @@ function Get-IntuneDevicePolicyAssignments {
     $deviceAssignments = @{}
     $assignedGroup = @()
 
-    #Variables
-    $memUserPrompt = Read-Host -Prompt 'Input Intune-licensed user'
-
     #Get User/device object
     $sName = Get-AzADUser -DisplayName "$memUserPrompt*"
     Write-Host "$($sName.DisplayName) identified"
 
+    
     #Return devices associated with user
     $devices = Get-IntuneManagedDevice | Where-Object { $_.userPrincipalName -eq "$($sName.UserPrincipalName)" }
+
+    
+    if (!($null -eq $targetdevice)) {
+        Write-Verbose "device already input as param"
+    }
+    else {
+        #Return devices associated with user
+        $devices = Get-IntuneManagedDevice | Where-Object { $_.userPrincipalName -eq "$($sName.UserPrincipalName)" }
+    }
+
 
     #Select device from list if multiple are currently managed
     if (($devices.id).count -gt 1) {
