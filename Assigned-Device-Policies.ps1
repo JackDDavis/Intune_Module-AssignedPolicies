@@ -25,30 +25,29 @@ function Get-IntuneDevicePolicyAssignments {
     $assignedGroup = @()
 
     #Variables
-    #$memUserPrompt = Read-Host -Prompt 'Input Intune-licensed user'
-    $memUserPrompt = 'jakio'
+    $memUserPrompt = Read-Host -Prompt 'Input Intune-licensed user'
 
-   #Get User/device object
-   $sName = Get-AzADUser -DisplayName "$memUserPrompt*"
-   Write-Host "$($sName.DisplayName) identified"
+    #Get User/device object
+    $sName = Get-AzADUser -DisplayName "$memUserPrompt*"
+    Write-Host "$($sName.DisplayName) identified"
 
-   #Return devices associated with user
-   $devices = Get-IntuneManagedDevice | Where-Object { $_.userPrincipalName -eq "$($sName.UserPrincipalName)" }
+    #Return devices associated with user
+    $devices = Get-IntuneManagedDevice | Where-Object { $_.userPrincipalName -eq "$($sName.UserPrincipalName)" }
 
-   #Select device from list if multiple are currently managed
-   if (($devices.id).count -gt 1) {
-       Write-Host "There are multiple managed devices enrolled for $($sName.DisplayName). Please specify device." -ForegroundColor Red
-       $devices.deviceName
-       $targetDeviceName = Read-Host "Provide Devicename from list above"
-       $targetDevice = $devices | Where-Object { $_.deviceName -like "$targetDeviceName" }
-       $targetDeviceId = ($targetDevice).azureADDeviceId
-       #Assign device info to Output
-       $deviceAssignments.Add("DeviceName", $targetDeviceName)
-       $deviceAssignments.Add("DeviceGUID", $targetDeviceId)
-   }
-   else {
-       $targetDevice = $devices | Where-Object { $_.deviceName -eq $targetDeviceName }
-   }
+    #Select device from list if multiple are currently managed
+    if (($devices.id).count -gt 1) {
+        Write-Host "There are multiple managed devices enrolled for $($sName.DisplayName). Please specify device." -ForegroundColor Red
+        $devices.deviceName
+        $targetDeviceName = Read-Host "Provide Devicename from list above"
+        $targetDevice = $devices | Where-Object { $_.deviceName -like "$targetDeviceName" }
+        $targetDeviceId = ($targetDevice).azureADDeviceId
+        #Assign device info to Output
+        $deviceAssignments.Add("DeviceName", $targetDeviceName)
+        $deviceAssignments.Add("DeviceGUID", $targetDeviceId)
+    }
+    else {
+        $targetDevice = $devices | Where-Object { $_.deviceName -eq $targetDeviceName }
+    }
 
     # Return all configured policies
     Write-Verbose "Querying Configuration Policies" -Verbose
@@ -132,13 +131,13 @@ function Get-IntuneDevicePolicyAssignments {
     if ($gMembership.Count -gt 0) {
         # identify policies assigned to the device's assigned groups
         foreach ($gr in $gMembership) {
-            foreach ($row in $upolColl | Where-Object {$_.Values -contains $gr})
-            { $filterPol += $row.Keys}
+            foreach ($row in $upolColl | Where-Object { $_.Values -contains $gr })
+            { $filterPol += $row.Keys }
         }
 
         # Filter unique
         $filterPol = $filterPol | Select-Object -Unique
-v
+        v
         # grab associated policies (Upoll Key ids)    
         Write-Verbose "Filtering policies" -Verbose
         #Write-Host $filterPol
