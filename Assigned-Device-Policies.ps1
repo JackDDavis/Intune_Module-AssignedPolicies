@@ -4,15 +4,14 @@ function Get-IntuneDevicePolicyAssignments {
         [Parameter(Mandatory = $true)]
         [string] $memUserPrompt,
         [string] $targetDeviceName
-
     )
 
     # Environment Prep
     Connect-MSGraph
     Update-MSGraphEnvironment -SchemaVersion beta
 
-    #Variables
-    #$polColl = @()
+    # Declare Variables
+    $polColl = @()
     $polCollCleanup = @()
     $addedGroups = @()
     $multiGroup = @()
@@ -83,8 +82,6 @@ function Get-IntuneDevicePolicyAssignments {
                     $polColl += @{$id = $assignedGroup }
                 }
             }
-            # Split multi-groups into individual GUIDs and add to policy collection
-            # $addedGroups += $multiGroup.Split(" ")
         }
         else {
             $failedPol = Get-IntuneDeviceConfigurationPolicy -deviceConfigurationId $id
@@ -106,15 +103,15 @@ function Get-IntuneDevicePolicyAssignments {
     foreach ($mg in $addedGroups) {
         $polColl += @{$id = $mg }
     }
-    #Cleanup returned groups
+    # Cleanup returned groups
     $polCollCleanup = $polColl | Select-Object -Unique
     $upolColl = $polCollCleanup | Where-Object { $_.Values -notlike "*null*" }
 
-    #From list of groups targeted with policies, identify those that this device is a member of
+    # From list of groups targeted with policies, identify those that this device is a member of
     $gMembership = @()
     foreach ($group in ($polColl).values) {
         $gMembers = (Get-AADGroupMember -groupId $group).DeviceId
-        #if a group contains the target device, add to an array
+        # if a group contains the target device, add to an array
         if ( $gMembers -contains $targetDeviceID) {
        
             $gMembership += $group
@@ -137,10 +134,8 @@ function Get-IntuneDevicePolicyAssignments {
 
         # Filter unique
         $filterPol = $filterPol | Select-Object -Unique
-        v
-        # grab associated policies (Upoll Key ids)    
+        # Grab associated policies (Upoll Key ids)    
         Write-Verbose "Filtering policies" -Verbose
-        #Write-Host $filterPol
         # Return policies
         foreach ($p in $filterPol) {
             Write-Verbose $polResults.displayName -Verbose
@@ -158,5 +153,4 @@ function Get-IntuneDevicePolicyAssignments {
     }
     Write-Output $deviceAssignments -Verbose
 }
-
-Export-ModuleMember -Function 'Get-IntuneDeviceConfigurationPolicyAssignment'
+Export-ModuleMember -Function Get-IntuneDeviceConfigurationPolicyAssignment
