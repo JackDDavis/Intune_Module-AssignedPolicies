@@ -11,15 +11,19 @@
  .Parameter targetDeviceName
   Target User's device
 
+ .Parameter outputPath
+  Path for File Output
+
  .Example
-  Get-IntuneDevicePolicyAssignments -User 'Jack'
+  Get-IntuneDevicePolicyAssignments -User 'Jack' -outputPath "$outPath\testfile.txt"
 #>
 function Get-IntuneDevicePolicyAssignments {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true)]
         [string] $User,
-        [string] $targetDeviceName
+        [string] $targetDeviceName,
+        [string] $outputPath
     )
 
     # Environment Prep
@@ -28,7 +32,6 @@ function Get-IntuneDevicePolicyAssignments {
 
     # Declare Variables
     $polColl = @()
-    $polCollCleanup = @()
     $addedGroups = @()
     $multiGroup = @()
     $gMembers = @()
@@ -38,6 +41,7 @@ function Get-IntuneDevicePolicyAssignments {
     $devices = ""
     $deviceAssignments = @{}
     $assignedGroup = @()
+    $filterPol = @()
 
     #Get User object
     $sName = Get-AzADUser -DisplayName "$User*"
@@ -89,10 +93,10 @@ function Get-IntuneDevicePolicyAssignments {
                 $gTypeVerify = (Get-AADGroupMember -groupId "$assignedGroup").$od | Select-Object -Unique
                 if (!($gTypeVerify -eq '#microsoft.graph.device') -and ($null -ne $gTypeVerify)) {
                     $nestedGp += $assignedGroup
-                    $ngroups = (Get-AADGroupMember -groupId "$nestedGp").id
+                    $ngroups = (Get-AADGroupMember -groupId $nestedGp).id
                     foreach ($g in $ngroups) {
                         $polColl += @{$id = $g }
-                        Write-Host "Adding nestedG $g as individual group for $id"
+                        Write-Verbose "Adding nested group $g as an individual group against policy id $id" -Verbose
                     }
                 }
                 else {
@@ -121,54 +125,58 @@ function Get-IntuneDevicePolicyAssignments {
     foreach ($mg in $addedGroups) {
         $polColl += @{$id = $mg }
     }
-    # Cleanup returned groups
-    $polCollCleanup = $polColl | Select-Object -Unique
-    $upolColl = $polCollCleanup | Where-Object { $_.Values -notlike "*null*" }
 
     # From list of groups targeted with policies, identify those that this device is a member of
     $gMembership = @()
-    foreach ($group in ($polColl).values) {
+    foreach ($group in $polColl.values) {
         $gMembers = (Get-AADGroupMember -groupId $group).DeviceId
         # if a group contains the target device, add to an array
         if ( $gMembers -contains $targetDeviceID) {
        
             $gMembership += $group
-            Write-Host "Group $group Match" -ForegroundColor Green     
-        }
-        else {
-            Write-Host "Not in group"
+            #Write-Host "Group $group Match" -ForegroundColor Green     
         }
     }
-
-    $gMembership = $gMembership | Select-Object -Unique
+    if ($null -eq $gMembership) {
+        Write-Host "No assigned policies identified" -ForegroundColor Yellow        
+    }
+    else {
+        $gMembership = $gMembership | Select-Object -Unique
+    }
 
     # for the groups that this device is a member of (where greater than 0)
     if ($gMembership.Count -gt 0) {
         # identify policies assigned to the device's assigned groups
         foreach ($gr in $gMembership) {
-            foreach ($row in $upolColl | Where-Object { $_.Values -contains $gr })
-            { $filterPol += $row.Keys }
+            foreach ($item in $polColl | Where-Object { $_.Values -contains $gr })
+            { $filterPol += $item.Keys 
+            Write-Host $item.Keys}
         }
 
         # Filter unique
-        $filterPol = $filterPol | Select-Object -Unique
-        # Grab associated policies (Upoll Key ids)    
-        Write-Verbose "Filtering policies" -Verbose
+        Write-Verbose "Filtering $($filterPol.count) policies" -Verbose  
+        #$filterPol = $filterPol | Select-Object -Unique
         # Return policies
         foreach ($p in $filterPol) {
-            Write-Verbose $polResults.displayName -Verbose
             $polResults = Get-IntuneDeviceConfigurationPolicy | Where-Object { $_.id -eq $p }
+            Write-Verbose $polResults.displayName -Verbose
             $deviceAssignments.add($($polResults.displayName), $polResults)
         }
         # Results
     }
     else {
-        Write-Host "This device does not have assigned configuration policies" -ForegroundColor Yellow
+        Write-Host "This device does not have assigned device configuration policies" -ForegroundColor Yellow
         $deviceAssignments = @{
             "DeviceName" = $targetDeviceName
             "DeviceGUID" = $targetDeviceId
         }
     }
+
+    $results = $deviceAssignments
+
     Write-Output $deviceAssignments -Verbose
+    if ($outputPath) {
+        $results | Select-Object -ExpandProperty Values | Out-File -FilePath $outputPath
+    }
 }
 Export-ModuleMember -Function Get-IntuneDeviceConfigurationPolicyAssignment
