@@ -5,20 +5,20 @@
  .Description
   For a particular user's device, retrieve the specific policies that are targeted
 
- .Parameter memUserPrompt
+ .Parameter User
   Target user
 
  .Parameter targetDeviceName
   Target User's device
 
  .Example
-  Get-IntuneDevicePolicyAssignments -memUserPrompt 'Jack'
+  Get-IntuneDevicePolicyAssignments -User 'Jack'
 #>
 function Get-IntuneDevicePolicyAssignments {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true)]
-        [string] $memUserPrompt,
+        [string] $User,
         [string] $targetDeviceName
     )
 
@@ -40,7 +40,7 @@ function Get-IntuneDevicePolicyAssignments {
     $assignedGroup = @()
 
     #Get User object
-    $sName = Get-AzADUser -DisplayName "$memUserPrompt*"
+    $sName = Get-AzADUser -DisplayName "$User*"
     Write-Host "$($sName.DisplayName) identified"
         
     if (!($null -eq $targetdevice)) {
