@@ -183,4 +183,4 @@ function Get-IntuneDevicePolicyAssignments {
         $results | Select-Object -ExpandProperty Values | Out-File -FilePath $outputPath
     }
 }
-Export-ModuleMember -Function Get-IntuneDeviceConfigurationPolicyAssignment
+Export-ModuleMember -Function 'Get-IntuneDevicePolicyAssignments'
