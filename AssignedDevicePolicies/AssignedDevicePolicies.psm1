@@ -116,7 +116,7 @@ function Get-IntuneDevicePolicyAssignments {
             Write-Verbose "No individual target groups identified for policy: $($failedPol.displayname)" -Verbose
             if ($targetAllDvc -eq "#microsoft.graph.allDevicesAssignmentTarget") {
                 Write-Host "$($failedPol.displayName) Assigned to all Users or Devices" -ForegroundColor Yellow
-                $idName = $id.displayName
+                $idName = $failedPol.displayName
                 $deviceAssignments.Add($idName, $failedPol)
             }        
         }
