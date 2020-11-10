@@ -27,10 +27,10 @@ Author = 'Jack Davis'
 #CompanyName = ''
 
 # Copyright statement for this module
-#Copyright = '(c) Jack Davis. All rights reserved.'
+#Copyright = ''
 
 # Description of the functionality provided by this module
-# Description = ''
+# Description = 'retrieve the policies targeted to a specified user's device'
 
 # Minimum version of the PowerShell engine required by this module
 # PowerShellVersion = ''

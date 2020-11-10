@@ -6,7 +6,7 @@
   For a particular user's device, retrieve the specific policies that are targeted
 
  .Parameter User
-  Target user
+  Target user UPN name
 
  .Parameter targetDeviceName
   Target User's device
