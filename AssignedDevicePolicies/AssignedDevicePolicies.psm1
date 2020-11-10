@@ -43,9 +43,11 @@ function Get-IntuneDevicePolicyAssignments {
     $gMembers           = @()
     $gMembership        = @()
     $multiGroup         = @()
+    $nestedGp           = @()
     $od                 = '@odata.type'
     $policyResults      = ""
     $polCollection      = @()
+    
 
     #Get User object
     $sName = Get-AzADUser -DisplayName "$User*"
