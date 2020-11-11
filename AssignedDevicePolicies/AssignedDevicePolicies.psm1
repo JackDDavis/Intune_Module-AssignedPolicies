@@ -99,7 +99,7 @@ function Get-IntuneDevicePolicyAssignments {
                     if (!($gTypeVerify -eq $odType) -and ($null -ne $gTypeVerify)) {
                         $nestedGp += $assignedGroupId
                         $ngroups = (Get-AADGroupMember -groupId $nestedGp).id
-                }
+                    }
                 
                 
                     foreach ($g in $ngroups) {
@@ -118,16 +118,13 @@ function Get-IntuneDevicePolicyAssignments {
             $failedPol = Get-IntuneDeviceConfigurationPolicy -deviceConfigurationId $id
             $failedOd = "@odata.type"
             $targetAllDvc = (Get-IntuneDeviceConfigurationPolicyAssignment -deviceConfigurationId $id).target.$failedOd
-            Write-Verbose "No individual target groups identified for policy: $($failedPol.displayname)" -Verbose
+            #Write-Verbose "No individual target groups identified for policy: $($failedPol.displayname)" -Verbose
             if ($targetAllDvc -eq "#microsoft.graph.allDevicesAssignmentTarget") {
-                Write-Host "$($failedPol.displayName) is assigned to all Users or Devices" -ForegroundColor Yellow
+                Write-Verbose "$($failedPol.displayName) is assigned to all Users or Devices" -Verbose
                 $idName = $failedPol.displayName
                 $deviceAssignments.Add($idName, $failedPol)
             }        
         }
-    }
-    else {
-        Write-Host "Config ID is $id"
     }
 
     # Add multi-group policy assignments to Policy Collection as 1:1 pairing
@@ -159,7 +156,7 @@ function Get-IntuneDevicePolicyAssignments {
         foreach ($gr in $gMembership) {
             foreach ($item in $polCollection | Where-Object { $_.Values -contains $gr }) {
                 $filterPol += $item.Keys 
-                Write-Host $item.Keys
+                #Write-Host $item.Keys
             }
         }
 
@@ -175,7 +172,7 @@ function Get-IntuneDevicePolicyAssignments {
         # Results
     }
     else {
-        Write-Host "This device does not have assigned device configuration policies" -ForegroundColor Yellow
+        Write-Verbose "$targetDeviceName ($targetDeviceId) does not have assigned device configuration policies" -Verbose
         $deviceAssignments = @{
             "DeviceName" = $targetDeviceName
             "DeviceGUID" = $targetDeviceId
