@@ -35,18 +35,18 @@ function Get-IntuneDevicePolicyAssignments {
     Update-MSGraphEnvironment -SchemaVersion beta
 
     # Declare Variables
-    $addedGroups        = @()
-    $assignedGroup      = @()
-    $devices            = ""
-    $deviceAssignments  = @{}
-    $filterPol          = @()
-    $gMembers           = @()
-    $gMembership        = @()
-    $multiGroup         = @()
-    $nestedGp           = @()
-    $od                 = '@odata.type'
-    $policyResults      = ""
-    $polCollection      = @()
+    $addedGroups = @()
+    $assignedGroupId = @()
+    $devices = ""
+    $deviceAssignments = @{}
+    $filterPol = @()
+    $gMembers = @()
+    $gMembership = @()
+    $nestedGp = @()
+    $od = '@odata.type'
+    $odType = '#microsoft.graph.device'
+    $policyResults = ""
+    $polCollection = @()
     
 
     #Get User object
@@ -84,31 +84,34 @@ function Get-IntuneDevicePolicyAssignments {
     # Identify target group(s) for each policy id assignment
     Write-Verbose "Querying available groups" -Verbose
     foreach ($id in $configId) {
-        #Return the assigned groups
-        $assignedGroup = ((Get-IntuneDeviceConfigurationPolicyAssignment -deviceConfigurationId $id).target).groupId
+        #Return the assigned group
+        $assignedGroupId = ((Get-IntuneDeviceConfigurationPolicyAssignment -deviceConfigurationId $id).target).groupId
         # Check to see if the returned assigned group is empty or not
-        if ($null -ne $assignedGroup) {
-            # if id is assigned to more than 1 group, add to multigroup array
-            if ($assignedGroup.Count -gt 1) {
-                $multiGroup = $assignedGroup
-                Write-Host "$multiGroup" -ForegroundColor Yellow
-            }
-            # if policy id assignment 1:1, check for nested groups
-            else {
-                #identify nested groups
-                $gTypeVerify = (Get-AADGroupMember -groupId "$assignedGroup").$od | Select-Object -Unique
-                if (!($gTypeVerify -eq '#microsoft.graph.device') -and ($null -ne $gTypeVerify)) {
-                    $nestedGp += $assignedGroup
-                    $ngroups = (Get-AADGroupMember -groupId $nestedGp).id
+        if ($null -ne $assignedGroupId) {
+            # if it is assigned to more than 1 group, 
+            #identify nested groups
+            if ($assignedGroupId.Count -gt 1) {
+                #Check if it is a device group &, if so, break out the nested group
+                foreach ($i in $assignedGroupId) {
+                    #Pull the type of group (User or Device) to ensure it's a device type
+                    $gTypeVerify = (Get-AADGroupMember -groupId "$i").$od | Select-Object -Unique
+                    #if it is a Device group & not empty, add it to 
+                    if (!($gTypeVerify -eq $odType) -and ($null -ne $gTypeVerify)) {
+                        $nestedGp += $assignedGroupId
+                        $ngroups = (Get-AADGroupMember -groupId $nestedGp).id
+                }
+                
+                
                     foreach ($g in $ngroups) {
                         $polCollection += @{$id = $g }
                         Write-Verbose "Adding nested group $g as an individual group against policy id $id" -Verbose
                     }
                 }
-                else {
-                    # if not a nested group, save to the Policy Collection
-                    $polCollection += @{$id = $assignedGroup }
-                }
+            }
+            # if policy id assignment is 1:1, add to Policy Collection
+            else {
+                # if not a nested group, save to the Policy Collection
+                $polCollection += @{$id = $assignedGroupId }
             }
         }
         else {
@@ -117,7 +120,7 @@ function Get-IntuneDevicePolicyAssignments {
             $targetAllDvc = (Get-IntuneDeviceConfigurationPolicyAssignment -deviceConfigurationId $id).target.$failedOd
             Write-Verbose "No individual target groups identified for policy: $($failedPol.displayname)" -Verbose
             if ($targetAllDvc -eq "#microsoft.graph.allDevicesAssignmentTarget") {
-                Write-Host "$($failedPol.displayName) Assigned to all Users or Devices" -ForegroundColor Yellow
+                Write-Host "$($failedPol.displayName) is assigned to all Users or Devices" -ForegroundColor Yellow
                 $idName = $failedPol.displayName
                 $deviceAssignments.Add($idName, $failedPol)
             }        
@@ -154,9 +157,10 @@ function Get-IntuneDevicePolicyAssignments {
     if ($gMembership.Count -gt 0) {
         # identify policies assigned to the device's assigned groups
         foreach ($gr in $gMembership) {
-            foreach ($item in $polCollection | Where-Object { $_.Values -contains $gr })
-            { $filterPol += $item.Keys 
-            Write-Host $item.Keys}
+            foreach ($item in $polCollection | Where-Object { $_.Values -contains $gr }) {
+                $filterPol += $item.Keys 
+                Write-Host $item.Keys
+            }
         }
 
         # Filter unique
