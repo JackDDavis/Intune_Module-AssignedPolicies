@@ -5,8 +5,8 @@
  .Description
   For a particular user's device, retrieve the specific policies that are targeted
 
- .Parameter User
-  Target user UPN name
+ .Parameter UPN
+  Target user's SAN or UPN name
 
  .Parameter targetDeviceName
   Target User's device
@@ -15,13 +15,13 @@
   Path for File Output
 
  .Example
-  Get-IntuneDevicePolicyAssignments -User 'Jack' -targetDeviceName 'computer1' -outputPath "$outPath\testfile.txt"
+  Get-IntuneDevicePolicyAssignments -UPN 'Jack' -targetDeviceName 'computer1' -outputPath "$outPath\testfile.txt"
 #>
 function Get-IntuneDevicePolicyAssignments {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true)]
-        [string] $User,
+        [string] $UPN,
 
         [Parameter()]
         [string] $TargetDeviceName,
@@ -50,7 +50,7 @@ function Get-IntuneDevicePolicyAssignments {
     
 
     #Get User object
-    $sName = Get-AzADUser -DisplayName "$User*"
+    $sName = Get-AzureADUser | Where-Object { $_.UserPrincipalName -eq "$UPN" }
     Write-Host "$($sName.DisplayName) identified"
         
     if (-not($null -eq $targetdevice)) {
