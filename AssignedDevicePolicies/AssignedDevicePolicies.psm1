@@ -47,8 +47,17 @@ function Get-IntuneDevicePolicyAssignments {
     $odType = '#microsoft.graph.device'
     $policyResults = ""
     $polCollection = @()
+    $modReady = $true
     
+    try {
+        Get-AzureADUser
+    }
+    catch {
+        "Please run Connect-AzureAD before running"
+        $modReady = $false
+    }
 
+    if ($modReady) {
     #Get User object
     $sName = Get-AzureADUser | Where-Object { $_.UserPrincipalName -eq "$UPN" }
     Write-Host "$($sName.DisplayName) identified"
@@ -185,5 +194,7 @@ function Get-IntuneDevicePolicyAssignments {
     if ($outputPath) {
         $results | Select-Object -ExpandProperty Values | Out-File -FilePath $outputPath
     }
+    }
+
 }
 Export-ModuleMember -Function 'Get-IntuneDevicePolicyAssignments'
