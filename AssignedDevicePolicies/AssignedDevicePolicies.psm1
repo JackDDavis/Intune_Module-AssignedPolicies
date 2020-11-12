@@ -51,7 +51,7 @@ function Get-IntuneDevicePolicyAssignments {
     $modReady = $true
     
     try {
-        Get-AzureADUser
+        $aadUsers = Get-AzureADUser
     }
     catch {
         "Please run Connect-AzureAD before running"
@@ -60,11 +60,12 @@ function Get-IntuneDevicePolicyAssignments {
 
     if ($modReady) {
         #Get User object
-        $sName = Get-AzureADUser | Where-Object { $_.UserPrincipalName -eq "$UPN" }
+        $sName = $aadUsers | Where-Object { $_.UserPrincipalName -eq "$UPN" }
         Write-Host "$($sName.DisplayName) identified"
         
-        if (-not($null -eq $targetdevice)) {
+        if (-not($null -eq $TargetDeviceName)) {
             Write-Verbose "device already input as param" -Verbose
+            $devices = Get-IntuneManagedDevice | Where-Object {$_.deviceName -like $TargetDeviceName}
         }
         else {
             #Return devices associated with user
@@ -86,6 +87,12 @@ function Get-IntuneDevicePolicyAssignments {
         }
         else {
             $targetDevice = $devices | Where-Object { $_.deviceName -eq $targetDeviceName }
+            $targetDeviceId = ($targetDevice).azureADDeviceId
+            #Assign device info to Output
+            $deviceAssignments.Add("DeviceName", $targetDeviceName)
+            $deviceAssignments.Add("DeviceGUID", $targetDeviceId)
+            $dAssignId.Add("DeviceName", $targetDeviceName)
+            $dAssignId.Add("DeviceGUID", $targetDeviceId)
         }
 
         # Return all configured policies
@@ -115,18 +122,25 @@ function Get-IntuneDevicePolicyAssignments {
                 
                 
                         foreach ($g in $ngroups) {
-                            $polCollection += @{$id = $g }
-                            Write-Verbose "Adding nested group $g as an individual group against policy id $id" -Verbose
+                            $GroupMembers2 = (Get-AzureADGroupMember -ObjectId $g).DeviceId
+                            if ($GroupMembers2 -contains $targetDeviceId) {
+                                $polCollection += @{$id = $g }
+                                Write-Verbose "Adding nested group $g as an individual group against policy id $id" -Verbose    
+                            }
                         }
                     }
                 }
                 # if policy id assignment is 1:1, add to Policy Collection
                 else {
-                    # if not a nested group, save to the Policy Collection
-                    $polCollection += @{$id = $assignedGroupId }
+                    # if not a nested group, & matches a group that includes the device then save to the Policy Collection
+                    $GroupMembers = (Get-AzureADGroupMember -ObjectId $assignedGroupId).DeviceId
+                    if ($GroupMembers -contains $targetDeviceId) {
+                        $polCollection += @{$id = $assignedGroupId }
+                    }
                 }
             }
             else {
+                #if it isn't a targeted group for the policy, do the following
                 $failedPol = Get-IntuneDeviceConfigurationPolicy -deviceConfigurationId $id
                 $failedOd = "@odata.type"
                 $targetAllDvc = (Get-IntuneDeviceConfigurationPolicyAssignment -deviceConfigurationId $id).target.$failedOd
@@ -197,11 +211,13 @@ function Get-IntuneDevicePolicyAssignments {
             }
         }
 
-        $results = $deviceAssignments
+        $results = $dAssignId
 
-        Return $dAssignId
+        #Return $dAssignId
         if ($outputPath) {
-            $results | Select-Object -ExpandProperty Values | Out-File -FilePath $outputPath
+            #$results | Select-Object -ExpandProperty Values | Out-File -FilePath $outputPath
+            $results | Out-File -FilePath $outputPath
+
         }    
     }
 }
