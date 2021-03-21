@@ -1,2 +1,2 @@
-# FHLNov2020
+# Get-AssignedDevicePolicies
 Returned a Device's Assigned Intune Policies
